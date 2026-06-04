@@ -295,30 +295,41 @@ async function runGrab(cfg) {
                 }
 
                 res.total++;
-                (function(cp, ak, token) {
-                    // 生成 h5st
-                    var params = {
-                        appid: cp.appid || "coupon-activity",
-                        functionId: cp.functionId || "getBenefit",
-                        client: "wh5",
-                        clientVersion: "1.0.0",
-                        t: Date.now(),
-                        body: cp.body || "{}"
-                    };
-                    var h5st = generateH5st(params, token, null, cp.appid || "fb5df");
+                (function(cp, ak) {
+                    var reqUrl, headers, body;
 
-                    // 构建请求
-                    var reqUrl = cp.url + "&h5st=" + h5st + "&t=" + params.t;
-                    var headers = {
-                        "Content-Type": "application/x-www-form-urlencoded",
-                        "Accept": "*/*",
-                        "User-Agent": ak.ua || "jdapp;iPhone;15.5.0;;;M/5.0;appBuild/170241",
-                        "Origin": "https://pro.m.jd.com",
-                        "Referer": "https://pro.m.jd.com/",
-                        "Cookie": ak.cookie
-                    };
+                    // 如果券有完整 URL（从 cURL 导入），直接重放
+                    if (cp.fullUrl) {
+                        reqUrl = cp.fullUrl;
+                        body = cp.body || "";
+                        headers = cp.fullHeaders ? JSON.parse(JSON.stringify(cp.fullHeaders)) : {};
+                        headers["Cookie"] = ak.cookie;
+                    } else {
+                        // 用服务器 h5st 签名（v4.4，可能不兼容）
+                        var token = tokenMap[ak.cookie];
+                        if (!token) { res.fail++; return; }
+                        var params = {
+                            appid: cp.appid || "coupon-activity",
+                            functionId: cp.functionId || "getBenefit",
+                            client: "wh5",
+                            clientVersion: "1.0.0",
+                            t: Date.now(),
+                            body: cp.body || "{}"
+                        };
+                        var h5st = generateH5st(params, token, null, cp.appid || "fb5df");
+                        reqUrl = cp.url + "&h5st=" + h5st + "&t=" + params.t;
+                        body = cp.body;
+                        headers = {
+                            "Content-Type": "application/x-www-form-urlencoded",
+                            "Accept": "*/*",
+                            "User-Agent": ak.ua || "jdapp;iPhone;15.5.0;;;M/5.0;appBuild/170241",
+                            "Origin": "https://pro.m.jd.com",
+                            "Referer": "https://pro.m.jd.com/",
+                            "Cookie": ak.cookie
+                        };
+                    }
 
-                    var p = cp.method === "POST" ? httpReq("POST", reqUrl, cp.body, headers) : httpReq("GET", reqUrl, null, headers);
+                    var p = cp.method === "POST" ? httpReq("POST", reqUrl, body, headers) : httpReq("GET", reqUrl, null, headers);
                     promises.push(p.then(function(resp) {
                         var j = parseJson(resp.body);
                         var bizCode = j.bizCode || "";
@@ -339,7 +350,7 @@ async function runGrab(cfg) {
                         res.fail++;
                         return { ok: false };
                     }));
-                })(cp, ak, token);
+                })(cp, ak);
             }
         }
 
@@ -371,7 +382,16 @@ function parseCurl(curl) {
         var appid = "coupon-activity";
         var amid = reqUrl.match(/appid=(\w+)/);
         if (amid) appid = amid[1];
-        return { name: name, method: method, url: reqUrl, body: body, appid: appid, functionId: fid ? fid[1] : "" };
+        // 提取 headers
+        var headers = {};
+        var hRe = /-H\s+'([^']+)'/g;
+        var hm;
+        while (hm = hRe.exec(curl)) {
+            var kv = hm[1].split(/:\s*(.+)/);
+            if (kv.length >= 2) headers[kv[0].trim()] = kv[1].trim();
+        }
+        return { name: name, method: method, url: reqUrl, body: body, appid: appid, functionId: fid ? fid[1] : "",
+                 fullUrl: reqUrl, fullHeaders: headers };
     } catch(e) {
         return { error: "解析失败: " + e.message };
     }
