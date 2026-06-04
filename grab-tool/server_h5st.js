@@ -245,17 +245,21 @@ async function runGrab(cfg) {
     var tokenMap = {};
     for (var i = 0; i < aa.length; i++) {
         var ak = aa[i];
-        if (h5stTokens[ak.cookie] && Date.now() - h5stTokens[ak.cookie].time < 25 * 60 * 1000) {
+        // 优先使用账号上存储的 token
+        if (ak.token) {
+            tokenMap[ak.cookie] = ak.token;
+            addLog("TOKEN", "使用已存token: " + ak.name, "");
+        } else if (h5stTokens[ak.cookie] && Date.now() - h5stTokens[ak.cookie].time < 25 * 60 * 1000) {
             tokenMap[ak.cookie] = h5stTokens[ak.cookie].token;
         } else {
-            addLog("TOKEN", "获取token: " + ak.name, "");
+            addLog("TOKEN", "获取token: " + ak.name, "（服务器IP可能被JD拦截）");
             var tr = await getToken(ak.cookie, ak.ua);
             if (tr.token) {
                 tokenMap[ak.cookie] = tr.token;
                 h5stTokens[ak.cookie] = { token: tr.token, time: Date.now() };
                 addLog("TOKEN", "token获取成功: " + ak.name, "");
             } else {
-                addLog("TOKEN", "token获取失败: " + ak.name, tr.error);
+                addLog("TOKEN", "token获取失败: " + ak.name, tr.error + " | 请在网页上手动获取token");
                 tokenMap[ak.cookie] = null;
             }
         }
