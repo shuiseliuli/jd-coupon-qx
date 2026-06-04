@@ -320,7 +320,9 @@ async function runGrab(cfg) {
                         var respMsg = j.message || j.msg || (j.data && j.data.message) || "";
                         var code = j.code !== undefined ? j.code : j.ret;
                         var rr = j.data && j.data.receiveResult;
-                        var respSummary = "code:" + code + " receiveResult:" + rr + " msg:" + respMsg.substring(0, 80);
+                        // 打印完整响应（截断）
+                        var fullResp = JSON.stringify(j).substring(0, 300);
+                        var respSummary = "code:" + code + " rr:" + rr + " | " + fullResp;
                         if (isSuccess(j)) {
                             res.success++;
                             addLog("SUCCESS", ak.name + " | " + cp.name, respSummary);
