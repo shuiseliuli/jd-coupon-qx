@@ -4,5 +4,12 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
+  },
+  "description": "",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "crypto-js": "^4.2.0"
   }
 }
