@@ -374,11 +374,10 @@ var server = http.createServer(async function(req, res) {
     res.setHeader("Access-Control-Allow-Headers", "Content-Type,Authorization");
     if (req.method === "OPTIONS") { res.writeHead(200); res.end(); return; }
 
-    // 认证检查（除前端页面和签名接口外）
-    if (p !== "/" && p !== "/index.html" && p !== "/api/sign" && p !== "/health") {
-        var token = req.headers["authorization"] || "";
-        if (token !== "Bearer " + AUTH_TOKEN && token !== AUTH_TOKEN) {
-            // 允许本地和局域网访问
+    // 认证检查（仅对外部签名接口）
+    if (p === "/api/sign" || p === "/api/token") {
+        var auth = req.headers["authorization"] || "";
+        if (auth !== "Bearer " + AUTH_TOKEN && auth !== AUTH_TOKEN) {
             var ip = req.connection.remoteAddress || "";
             if (ip.indexOf("127.0.0.1") === -1 && ip.indexOf("::1") === -1 && ip.indexOf("192.168.") === -1 && ip.indexOf("10.") === -1) {
                 return sendJSON(res, { error: "Unauthorized" }, 401);
