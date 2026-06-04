@@ -57,8 +57,8 @@ function isPermanentFail(json) {
 // ==================== 主逻辑 ====================
 
 (function main() {
-    var cookie = $rocketcache.get("jd_coupon_cookie") || "";
-    var rawData = $rocketcache.get("jd_coupon_data") || "";
+    var cookie = $persistentStore.read("jd_coupon_cookie") || "";
+    var rawData = $persistentStore.read("jd_coupon_data") || "";
 
     if (!cookie || !rawData) {
         $notification.post("❌ 缺少数据", "请先用抓包脚本获取领券请求", "");

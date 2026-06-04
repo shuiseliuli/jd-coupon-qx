@@ -49,8 +49,8 @@ var capturedData = {
     capturedAt: new Date().toISOString()
 };
 
-$rocketcache.set("jd_coupon_cookie", cookie);
-$rocketcache.set("jd_coupon_data", JSON.stringify(capturedData));
+$persistentStore.write(cookie, "jd_coupon_cookie");
+$persistentStore.write(JSON.stringify(capturedData), "jd_coupon_data");
 
 // 通知
 $notification.post(
