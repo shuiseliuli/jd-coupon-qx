@@ -218,11 +218,12 @@ function httpReq(method, reqUrl, body, headers) {
 
 function parseJson(s) { try { return JSON.parse(s); } catch(e) { return {}; } }
 function isSuccess(j) {
-    // 必须有明确的成功标识，不能只看 code
-    if (j.data && j.data.receiveResult === 1) return true;
-    if (j.data && j.data.couponId && !j.data.message) return true;
-    if (j.data && j.data.result === 1) return true;
-    if (j.success === true && j.data && j.data.receiveResult !== 2) return true;
+    // 必须有明确的领取成功标识
+    if (j.data) {
+        if (j.data.receiveResult === 1) return true;
+        if (j.data.result === 1) return true;
+        if (j.data.couponId && !j.data.message) return true;
+    }
     return false;
 }
 function isPermFail(j) {
@@ -316,8 +317,10 @@ async function runGrab(cfg) {
                     var p = cp.method === "POST" ? httpReq("POST", reqUrl, cp.body, headers) : httpReq("GET", reqUrl, null, headers);
                     promises.push(p.then(function(resp) {
                         var j = parseJson(resp.body);
-                        var respMsg = j.message || j.msg || j.data && j.data.message || "";
-                        var respSummary = "code:" + j.code + " msg:" + respMsg.substring(0, 50);
+                        var respMsg = j.message || j.msg || (j.data && j.data.message) || "";
+                        var code = j.code !== undefined ? j.code : j.ret;
+                        var rr = j.data && j.data.receiveResult;
+                        var respSummary = "code:" + code + " receiveResult:" + rr + " msg:" + respMsg.substring(0, 80);
                         if (isSuccess(j)) {
                             res.success++;
                             addLog("SUCCESS", ak.name + " | " + cp.name, respSummary);
