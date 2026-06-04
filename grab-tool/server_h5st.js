@@ -218,14 +218,21 @@ function httpReq(method, reqUrl, body, headers) {
 
 function parseJson(s) { try { return JSON.parse(s); } catch(e) { return {}; } }
 function isSuccess(j) {
-    if (j.code === 0 || j.code === "0" || j.ret === 0 || j.success === true) return true;
-    if (j.data && (j.data.receiveResult === 1 || j.data.couponId || j.data.result === 1)) return true;
+    // 必须有明确的成功标识，不能只看 code
+    if (j.data && j.data.receiveResult === 1) return true;
+    if (j.data && j.data.couponId && !j.data.message) return true;
+    if (j.data && j.data.result === 1) return true;
+    if (j.success === true && j.data && j.data.receiveResult !== 2) return true;
     return false;
 }
 function isPermFail(j) {
+    // 已领取、已抢完、已过期等
     if (j.code === 1001 || j.code === 1002 || j.code === 2008) return true;
-    var m = j.message || "";
+    var m = (j.message || j.msg || j.data && j.data.message || "") + "";
     if (m.indexOf("已领取") > -1 || m.indexOf("已抢完") > -1 || m.indexOf("已领完") > -1) return true;
+    if (m.indexOf("已过期") > -1 || m.indexOf("领取上限") > -1 || m.indexOf("不满足") > -1) return true;
+    if (j.data && j.data.receiveResult === 2) return true; // 已领取
+    if (j.data && j.data.receiveResult === 3) return true; // 已抢完
     return false;
 }
 
@@ -309,15 +316,18 @@ async function runGrab(cfg) {
                     var p = cp.method === "POST" ? httpReq("POST", reqUrl, cp.body, headers) : httpReq("GET", reqUrl, null, headers);
                     promises.push(p.then(function(resp) {
                         var j = parseJson(resp.body);
+                        var respMsg = j.message || j.msg || j.data && j.data.message || "";
+                        var respSummary = "code:" + j.code + " msg:" + respMsg.substring(0, 50);
                         if (isSuccess(j)) {
                             res.success++;
-                            addLog("SUCCESS", ak.name + " | " + cp.name, JSON.stringify(j.data || {}).substring(0, 100));
+                            addLog("SUCCESS", ak.name + " | " + cp.name, respSummary);
                             return { ok: true };
                         }
                         if (isPermFail(j)) {
-                            addLog("FAIL", ak.name + " | " + cp.name + " | " + (j.message || ""), "");
+                            addLog("FAIL", ak.name + " | " + cp.name, respSummary);
                             return { ok: false, perm: true };
                         }
+                        addLog("FAIL", ak.name + " | " + cp.name, respSummary);
                         res.fail++;
                         return { ok: false };
                     }));
