@@ -10,6 +10,18 @@
 | `jd_coupon_capture.js` | 抓包脚本 - 捕获领券请求参数 |
 | `jd_coupon_grab.js` | 抢券脚本 - 重放单个领券请求 |
 | `jd_coupon_center.js` | 券中心脚本 - 批量抢多张券 |
+| `h5st_server.js` | 后端签名服务（Node.js） |
+| `jd_coupon_grab_with_server.js` | 后端签名版抢券脚本 |
+
+## 快速开始
+
+直接在 Quantumult X 脚本编辑器中粘贴脚本内容即可：
+
+| 脚本 | URL |
+|------|-----|
+| 抓包脚本 | `https://raw.githubusercontent.com/shuiseliuli/jd-coupon-qx/main/jd_coupon_capture.js` |
+| 重放抢券 | `https://raw.githubusercontent.com/shuiseliuli/jd-coupon-qx/main/jd_coupon_grab.js` |
+| 批量抢券 | `https://raw.githubusercontent.com/shuiseliuli/jd-coupon-qx/main/jd_coupon_center.js` |
 
 ## 使用步骤
 
@@ -18,6 +30,7 @@
 1. 打开 Quantumult X
 2. 进入 **设置 → 重写 → 引用**
 3. 添加配置文件 URL（或手动添加 rewrite 规则）
+   URL: https://raw.githubusercontent.com/shuiseliuli/jd-coupon-qx/main/quantumultx_rewrites.conf
 4. 确保 MITM 已启用并信任证书
 
 需要添加的 MITM hostname:
