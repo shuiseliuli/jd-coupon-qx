@@ -218,22 +218,26 @@ function httpReq(method, reqUrl, body, headers) {
 
 function parseJson(s) { try { return JSON.parse(s); } catch(e) { return {}; } }
 function isSuccess(j) {
-    // 必须有明确的领取成功标识
-    if (j.data) {
-        if (j.data.receiveResult === 1) return true;
-        if (j.data.result === 1) return true;
-        if (j.data.couponId && !j.data.message) return true;
-    }
+    // 真正的领取成功：bizCode 为 "000" 或 result.baseResult.resultCode 为 0
+    if (j.bizCode === "000" || j.bizCode === 0) return true;
+    if (j.result && j.result.baseResult && j.result.baseResult.resultCode === 0) return true;
     return false;
 }
 function isPermFail(j) {
-    // 已领取、已抢完、已过期等
-    if (j.code === 1001 || j.code === 1002 || j.code === 2008) return true;
-    var m = (j.message || j.msg || j.data && j.data.message || "") + "";
-    if (m.indexOf("已领取") > -1 || m.indexOf("已抢完") > -1 || m.indexOf("已领完") > -1) return true;
-    if (m.indexOf("已过期") > -1 || m.indexOf("领取上限") > -1 || m.indexOf("不满足") > -1) return true;
-    if (j.data && j.data.receiveResult === 2) return true; // 已领取
-    if (j.data && j.data.receiveResult === 3) return true; // 已抢完
+    // bizCode 判断
+    if (j.bizCode === "011") return true; // 已领取
+    if (j.bizCode === "012") return true; // 已抢完
+    if (j.bizCode === "001") return true; // 参数错误
+    // resultCode 判断
+    if (j.result && j.result.baseResult) {
+        var rc = j.result.baseResult.resultCode;
+        if (rc === 15 || rc === 16 || rc === 17 || rc === 18) return true; // 已参加/已领取/已抢完/不满足
+    }
+    // toast 判断
+    var t = (j.toast || j.bizMsg || j.result && j.result.baseResult && j.result.baseResult.resultMsg || "") + "";
+    if (t.indexOf("已领取") > -1 || t.indexOf("已领完") > -1 || t.indexOf("已抢完") > -1) return true;
+    if (t.indexOf("已参加过") > -1 || t.indexOf("明天再来") > -1) return true;
+    if (t.indexOf("过期") > -1 || t.indexOf("领取上限") > -1 || t.indexOf("不满足") > -1) return true;
     return false;
 }
 
@@ -317,12 +321,11 @@ async function runGrab(cfg) {
                     var p = cp.method === "POST" ? httpReq("POST", reqUrl, cp.body, headers) : httpReq("GET", reqUrl, null, headers);
                     promises.push(p.then(function(resp) {
                         var j = parseJson(resp.body);
-                        var respMsg = j.message || j.msg || (j.data && j.data.message) || "";
-                        var code = j.code !== undefined ? j.code : j.ret;
-                        var rr = j.data && j.data.receiveResult;
-                        // 打印完整响应（截断）
-                        var fullResp = JSON.stringify(j).substring(0, 300);
-                        var respSummary = "code:" + code + " rr:" + rr + " | " + fullResp;
+                        var bizCode = j.bizCode || "";
+                        var toast = j.toast || "";
+                        var resultCode = j.result && j.result.baseResult && j.result.baseResult.resultCode;
+                        var resultMsg = j.result && j.result.baseResult && j.result.baseResult.resultMsg || "";
+                        var respSummary = "bizCode:" + bizCode + " rc:" + resultCode + " | " + (toast || resultMsg).substring(0, 100);
                         if (isSuccess(j)) {
                             res.success++;
                             addLog("SUCCESS", ak.name + " | " + cp.name, respSummary);
