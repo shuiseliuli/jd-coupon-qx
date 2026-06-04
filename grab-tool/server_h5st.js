@@ -514,6 +514,15 @@ var server = http.createServer(async function(req, res) {
         addLog("STOP", "手动停止", ""); return sendJSON(res, { success: true });
     }
 
+    // 解析 JD 页面，提取领券链接
+    if (p === "/api/parse-jd-page" && req.method === "POST") {
+        var b = await parseBody(req);
+        var html = b.html || "";
+        if (!html) return sendJSON(res, { error: "请粘贴页面内容" });
+        var links = extractJdLinks(html);
+        return sendJSON(res, { links: links, total: links.length });
+    }
+
     // 日志
     if (p === "/api/logs" && req.method === "DELETE") {
         logs = []; saveJSON("logs.json", logs); return sendJSON(res, { success: true });
@@ -521,6 +530,95 @@ var server = http.createServer(async function(req, res) {
 
     sendJSON(res, { error: "Not Found" }, 404);
 });
+
+// ==================== JD 页面链接提取 ====================
+function extractJdLinks(html) {
+    var links = [];
+    var seen = {};
+
+    // 方式1: 提取 api.m.jd.com/client.action 链接（GET 格式）
+    var re1 = /https?:\/\/api\.m\.jd\.com\/client\.action[^"'\s<>]+/g;
+    var m;
+    while (m = re1.exec(html)) {
+        var u = decodeURIComponent(m[0]);
+        var fid = u.match(/functionId=(\w+)/);
+        var aid = u.match(/appid=(\w+)/);
+        var key = (fid ? fid[1] : "") + "_" + (aid ? aid[1] : "");
+        if (!seen[key] && fid) {
+            seen[key] = true;
+            var bodyMatch = u.match(/body=([^&]+)/);
+            var body = bodyMatch ? decodeURIComponent(bodyMatch[1]) : "{}";
+            links.push({
+                name: fid[1],
+                functionId: fid[1],
+                appid: aid ? aid[1] : "coupon-activity",
+                url: u.split("&h5st=")[0], // 去掉旧 h5st
+                method: "GET",
+                body: body,
+                source: "page-link"
+            });
+        }
+    }
+
+    // 方式2: 提取 JS 代码中的 functionId + body 组合
+    var re2 = /functionId["']?\s*[:=]\s*["'](\w+)["']/g;
+    while (m = re2.exec(html)) {
+        var fid2 = m[1];
+        if (seen[fid2]) continue;
+        // 检查是否是领券相关的 functionId
+        var couponFids = ["getBenefit", "collectCoupon", "receiveCoupon", "getCoupon", "claimCoupon", "grabCoupon"];
+        if (couponFids.indexOf(fid2) > -1 || fid2.toLowerCase().indexOf("coupon") > -1 || fid2.toLowerCase().indexOf("benefit") > -1) {
+            seen[fid2] = true;
+            // 尝试在附近找 body 或 appid
+
+            var ctxStart = Math.max(0, m.index - 500);
+            var ctxEnd = Math.min(html.length, m.index + 2000);
+            var ctx = html.substring(ctxStart, ctxEnd);
+            var aid2 = ctx.match(/appid["']?\s*[:=]\s*["'](\w+)["']/);
+            var body2 = ctx.match(/body["']?\s*[:=]\s*["']({[^}]+})["']/);
+            var source2 = ctx.match(/source["']?\s*[:=]\s*["']([^"']+)["']/);
+            var platform2 = ctx.match(/platform["']?\s*[:=]\s*["']([^"']+)["']/);
+            var epMatch = ctx.match(/encryptedParam["']?\s*[:=]\s*["']([^"']+)["']/);
+
+            var bodyObj = {};
+            if (source2) bodyObj.source = source2[1];
+            if (platform2) bodyObj.platform = platform2[1];
+            if (epMatch) bodyObj.encryptedParam = epMatch[1];
+            if (body2) { try { bodyObj = JSON.parse(body2[1]); } catch(e) {} }
+
+            links.push({
+                name: fid2,
+                functionId: fid2,
+                appid: aid2 ? aid2[1] : "coupon-activity",
+                url: "https://api.m.jd.com/client.action?functionId=" + fid2 + "&appid=" + (aid2 ? aid2[1] : "coupon-activity") + "&client=wh5&clientVersion=15.5.0",
+                method: "POST",
+                body: JSON.stringify(bodyObj),
+                source: "page-js"
+            });
+        }
+    }
+
+    // 方式3: 提取 activityId / couponUrl 等活动链接
+    var re3 = /https?:\/\/pro\.m\.jd\.com\/mall\/active\/([A-Za-z0-9]+)\/index\.html/g;
+    while (m = re3.exec(html)) {
+        var actId = m[1];
+        if (!seen["act_" + actId]) {
+            seen["act_" + actId] = true;
+            links.push({
+                name: "活动页面: " + actId,
+                functionId: "getBenefit",
+                appid: "coupon-activity",
+                url: "https://api.m.jd.com/client.action?functionId=getBenefit&appid=coupon-activity&client=wh5&clientVersion=15.5.0",
+                method: "POST",
+                body: JSON.stringify({ source: "conpons-volley", platform: "conpons-volley", encryptedParam: "", key: "", roleId: "" }),
+                source: "activity-page",
+                activityId: actId
+            });
+        }
+    }
+
+    return links;
+}
 
 server.listen(PORT, function() {
     console.log("============================================");

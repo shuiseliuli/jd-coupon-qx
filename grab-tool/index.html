@@ -89,6 +89,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#f5f5f5;
 <div id="t-log" style="display:none">
   <div class="sec"><div class="sec-t">运行日志 <button class="btn bgr" onclick="doClear()">清空</button></div><div id="ll"></div></div>
 </div>
+<div id="t-parse" style="display:none">
+  <div class="sec">
+    <div class="sec-t">解析JD页面</div>
+    <div class="hint" style="margin:10px">💡 从JD活动页面源码中提取所有领券API链接。复制网页HTML源码粘贴到下方。</div>
+    <div class="fg" style="padding:10px 14px"><textarea id="pg-html" rows="6" placeholder="粘贴JD活动页面的HTML源码...\n\n获取方式：\n1. 手机浏览器打开活动页面\n2. 长按 → 查看源代码 / 或用抓包工具复制响应体\n3. 粘贴到这里"></textarea></div>
+    <div style="padding:0 14px 10px"><button class="btn bp bb" onclick="doParsePage()">🔍 解析页面</button></div>
+    <div id="pg-result"></div>
+  </div>
+</div>
 
 <!-- 添加账号弹窗 -->
 <div class="md" id="m-acc"><div class="md-c">
@@ -124,6 +133,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#f5f5f5;
   <div class="t on" onclick="sw('acc')"><i>👤</i>账号</div>
   <div class="t" onclick="sw('cpn')"><i>🎫</i>券</div>
   <div class="t" onclick="sw('grab')"><i>🚀</i>抢券</div>
+  <div class="t" onclick="sw('parse')"><i>🔍</i>解析</div>
   <div class="t" onclick="sw('log')"><i>📋</i>日志</div>
 </div>
 
@@ -170,6 +180,10 @@ function dlC(i){if(confirm('删除？'))api('DELETE','/api/coupons/'+i).then(ld)
 
 // 解析 cURL
 function doParse(){var c=document.getElementById('ccurl').value;if(!c){alert('请粘贴cURL');return}api('POST','/api/parse-curl',{curl:c}).then(function(r){if(r.error){alert(r.error);return}document.getElementById('cn').value=r.name||'';document.getElementById('cm').value=r.method||'POST';document.getElementById('curl').value=r.url||'';document.getElementById('cbody').value=r.body||'';alert('appid:'+(r.appid||'')+' functionId:'+(r.functionId||'')+'\n解析成功！检查后保存')}).catch(function(e){alert('解析失败: '+e.message)})}
+
+// 解析JD页面
+function doParsePage(){var h=document.getElementById('pg-html').value;if(!h){alert('请粘贴页面HTML源码');return}api('POST','/api/parse-jd-page',{html:h}).then(function(r){if(r.error){alert(r.error);return}var el=document.getElementById('pg-result');if(!r.links||r.links.length===0){el.innerHTML='<div class="empty">未找到领券链接</div>';return}var sh='<div class="hint" style="margin:10px">找到 '+r.total+' 个领券链接，点击添加：</div>';r.links.forEach(function(l,i){sh+='<div class="it"><div class="it-i"><div class="it-n">'+l.name+'</div><div class="it-d">'+l.method+' appid:'+(l.appid||'')+' '+(l.source||'')+'</div><div class="it-d" style="color:#999">'+(l.url||'').substring(0,80)+'…</div></div><div class="it-a"><button class="btn bp" onclick="addParsedLink('+i+')">添加</button></div></div>'});el.innerHTML=sh;window._parsedLinks=r.links}).catch(function(e){alert('解析失败: '+e.message)})}
+function addParsedLink(i){var l=(window._parsedLinks||[])[i];if(!l)return;api('POST','/api/coupons',{name:l.name||'券',method:l.method||'POST',url:l.url,body:l.body||'{}',appid:l.appid||'coupon-activity',functionId:l.functionId||'',enabled:true}).then(function(r){if(r.error){alert('添加失败: '+r.error);return}alert('已添加: '+l.name);ld()}).catch(function(e){alert('添加失败: '+e.message)})}
 
 // 抢券
 function doStart(){api('POST','/api/grab/start',{concurrency:parseInt(document.getElementById('c-c').value)||3,retryCount:parseInt(document.getElementById('c-r').value)||10,retryDelay:parseInt(document.getElementById('c-d').value)||300,scheduleTime:document.getElementById('c-s').value||null}).then(function(r){if(r.error){alert(r.error);return}if(r.scheduled)alert('定时: '+r.scheduled);ld()})}
