@@ -536,6 +536,37 @@ function extractJdLinks(html) {
     var links = [];
     var seen = {};
 
+    // 方式0: 批量 cURL（多行，来自 Stream 抓包）
+    var curlBlocks = html.split(/(?=curl\s+['"]https?:\/\/api\.m\.jd\.com)/);
+    if (curlBlocks.length > 1) {
+        curlBlocks.forEach(function(block) {
+            block = block.trim();
+            if (!block.startsWith("curl")) return;
+            var parsed = parseCurl(block);
+            if (parsed.error) return;
+            if (parsed.fullUrl && parsed.fullUrl.indexOf("functionId=") > -1) {
+                var fid = parsed.functionId || "unknown";
+                var key = fid + "_" + (parsed.appid || "");
+                if (!seen[key]) {
+                    seen[key] = true;
+                    parsed.source = "stream-batch";
+                    links.push(parsed);
+                }
+            }
+        });
+        if (links.length > 0) return links;
+    }
+
+    // 方式0b: 单个 cURL（直接粘贴完整 cURL）
+    if (html.trim().startsWith("curl ") && html.indexOf("api.m.jd.com") > -1) {
+        var single = parseCurl(html.trim());
+        if (!single.error && single.fullUrl) {
+            single.source = "stream-single";
+            links.push(single);
+            return links;
+        }
+    }
+
     // 方式1: 提取 api.m.jd.com/client.action 链接（GET 格式）
     var re1 = /https?:\/\/api\.m\.jd\.com\/client\.action[^"'\s<>]+/g;
     var m;
