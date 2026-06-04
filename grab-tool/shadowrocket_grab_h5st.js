@@ -10,7 +10,7 @@ var STORE_LOGS = "jd_logs";
 var STORE_STATE = "jd_state";
 
 // ⚠️ 改成你的服务器地址
-var SERVER_URL = "http://116.205.237.143:3001";
+var SERVER_URL = "http://116.205.237.143:3000";
 var SERVER_TOKEN = "jd-grab-2024";
 
 function load(key) {
