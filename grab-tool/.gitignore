@@ -1,2 +1,4 @@
 node_modules/
 data/
+backup_*.tar.gz
+*_v1_0_backup.*

@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>京东抢券工具</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#f5f5f5;color:#333;padding-bottom:70px}
+.hdr{background:linear-gradient(135deg,#e4393c,#d32f2f);color:#fff;padding:14px 16px;text-align:center;font-size:17px;font-weight:600;position:sticky;top:0;z-index:100}
+.hdr small{font-size:11px;opacity:.8;display:block;margin-top:2px}
+.sec{margin:10px;background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);overflow:hidden}
+.sec-t{padding:11px 14px;font-size:14px;font-weight:600;border-bottom:1px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center}
+.cnt{background:#e4393c;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px}
+.it{padding:10px 14px;border-bottom:1px solid #f5f5f5;display:flex;justify-content:space-between;align-items:center}
+.it:last-child{border-bottom:none}
+.it-i{flex:1;min-width:0}
+.it-n{font-size:13px;font-weight:500;margin-bottom:3px}
+.it-d{font-size:11px;color:#999;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.it-a{display:flex;gap:6px;align-items:center}
+.btn{padding:5px 12px;border-radius:5px;border:none;font-size:12px;cursor:pointer}
+.bp{background:#e4393c;color:#fff}.bg{background:#4caf50;color:#fff}
+.bd{background:#f44336;color:#fff}.bgr{background:#eee;color:#666}
+.bo{background:#ff9800;color:#fff}
+.bb{display:block;width:100%;padding:11px;font-size:14px;border-radius:7px}
+.tg{position:relative;width:40px;height:22px}
+.tg input{display:none}
+.tg-s{position:absolute;inset:0;background:#ddd;border-radius:11px;transition:.3s;cursor:pointer}
+.tg-s:before{content:"";position:absolute;width:18px;height:18px;left:2px;top:2px;background:#fff;border-radius:50%;transition:.3s}
+.tg input:checked+.tg-s{background:#4caf50}
+.tg input:checked+.tg-s:before{transform:translateX(18px)}
+.fg{margin:10px 14px}
+.fg label{display:block;font-size:12px;color:#666;margin-bottom:5px}
+.fg input,.fg textarea,.fg select{width:100%;padding:9px 11px;border:1px solid #ddd;border-radius:7px;font-size:13px}
+.fg textarea{min-height:70px;resize:vertical}
+.md{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:flex-end;justify-content:center}
+.md.on{display:flex}
+.md-c{background:#fff;width:100%;max-width:500px;border-radius:14px 14px 0 0;max-height:80vh;overflow-y:auto}
+.md-h{padding:14px;font-size:15px;font-weight:600;text-align:center;border-bottom:1px solid #f0f0f0;position:sticky;top:0;background:#fff}
+.md-b{padding:14px}
+.md-f{padding:10px 14px;display:flex;gap:7px}
+.md-f .btn{flex:1}
+.tab{position:fixed;bottom:0;left:0;right:0;background:#fff;display:flex;border-top:1px solid #eee;z-index:100;padding-bottom:env(safe-area-inset-bottom)}
+.t{flex:1;text-align:center;padding:7px 0;font-size:11px;color:#666;cursor:pointer}
+.t.on{color:#e4393c}
+.t i{font-size:20px;display:block;font-style:normal}
+.li{padding:8px 14px;border-bottom:1px solid #f5f5f5;font-size:12px}
+.lt{color:#999;font-size:10px}
+.lp{display:inline-block;padding:1px 5px;border-radius:3px;font-size:10px;margin-right:5px}
+.l-SUCCESS{background:#e8f5e9;color:#2e7d32}
+.l-FAIL{background:#ffebee;color:#c62828}
+.l-START{background:#e3f2fd;color:#1565c0}
+.l-ROUND{background:#fff3e0;color:#e65100}
+.l-END{background:#f3e5f5;color:#6a1b9a}
+.l-TOKEN{background:#e8eaf6;color:#283593}
+.l-SKIP{background:#fce4ec;color:#880e4f}
+.l-SCHEDULE{background:#f1f8e9;color:#33691e}
+.l-CONFIG{background:#e0f2f1;color:#004d40}
+.l-STOP{background:#fbe9e7;color:#bf360c}
+.empty{text-align:center;padding:30px;color:#999;font-size:13px}
+.hint{background:#fff8e1;padding:8px 14px;font-size:11px;color:#f57f17}
+.tk-st{display:inline-block;padding:2px 6px;border-radius:3px;font-size:10px}
+.tk-ok{background:#e8f5e9;color:#2e7d32}
+.tk-no{background:#ffebee;color:#c62828}
+</style>
+</head>
+<body>
+<div class="hdr" id="hdr">🎯 京东抢券工具 <small>v2.1 | h5st签名·多账号·定时</small></div>
+
+<div id="t-acc">
+  <div class="sec"><div class="sec-t">账号列表 <span class="cnt" id="ac">0</span></div><div id="al"></div></div>
+  <div class="hint" style="margin:10px">💡 每个账号需要获取token才能抢券。token有效期约25分钟。</div>
+</div>
+<div id="t-cpn" style="display:none">
+  <div class="sec"><div class="sec-t">券列表 <span class="cnt" id="cc">0</span></div><div id="cl"></div></div>
+</div>
+<div id="t-grab" style="display:none">
+  <div class="sec">
+    <div class="sec-t">抢券控制</div>
+    <div class="fg"><label>并发数</label><input type="number" id="c-c" value="3" min="1" max="10"></div>
+    <div class="fg"><label>重试轮数</label><input type="number" id="c-r" value="10" min="1" max="100"></div>
+    <div class="fg"><label>每轮间隔（毫秒）</label><input type="number" id="c-d" value="300" min="50" max="5000"></div>
+    <div class="fg"><label>定时抢（可选）</label><input type="datetime-local" id="c-s" step="1"></div>
+    <div style="padding:10px 14px"><button class="btn bp bb" onclick="doStart()" id="bs">🚀 手动抢</button></div>
+    <div style="padding:0 14px 10px"><button class="btn bd bb" onclick="doStop()" id="bst" style="display:none">⏹ 停止</button></div>
+    <div id="cd-area"></div>
+  </div>
+</div>
+<div id="t-log" style="display:none">
+  <div class="sec"><div class="sec-t">运行日志 <button class="btn bgr" onclick="doClear()">清空</button></div><div id="ll"></div></div>
+</div>
+
+<!-- 添加账号弹窗 -->
+<div class="md" id="m-acc"><div class="md-c">
+  <div class="md-h">添加账号</div>
+  <div class="md-b">
+    <div class="fg"><label>名称</label><input id="an" placeholder="主号"></div>
+    <div class="fg"><label>Cookie</label><textarea id="acook" placeholder="pt_key=...; pt_pin=...;"></textarea></div>
+    <div class="fg"><label>User-Agent（可选）</label><input id="aua" placeholder="留空用默认"></div>
+    <div class="fg"><label>Token（可选，可后续获取）</label><input id="atk" placeholder="手动粘贴或点击下方获取"></div>
+  </div>
+  <div class="md-f">
+    <button class="btn bgr" onclick="cm('m-acc')">取消</button>
+    <button class="btn bo" onclick="getTokenFromBrowser()">🔑 获取Token</button>
+    <button class="btn bp" onclick="saveAcc()">保存</button>
+  </div>
+</div></div>
+
+<!-- 添加券弹窗 -->
+<div class="md" id="m-cpn"><div class="md-c">
+  <div class="md-h">添加券</div>
+  <div class="md-b">
+    <div class="hint">💡 支持粘贴 cURL 或手动填写</div>
+    <div class="fg"><label>名称</label><input id="cn" placeholder="满199减100"></div>
+    <div class="fg"><label>请求方式</label><select id="cm"><option value="POST">POST</option><option value="GET">GET</option></select></div>
+    <div class="fg"><label>URL</label><textarea id="curl" placeholder="https://api.m.jd.com/client.action?..."></textarea></div>
+    <div class="fg"><label>Body（POST用）</label><textarea id="cbody" placeholder="source=...&platform=..."></textarea></div>
+    <div class="fg"><label>或粘贴 cURL（自动解析）</label><textarea id="ccurl" rows="3" placeholder="curl 'https://...' -H '...' --data '...'"></textarea></div>
+  </div>
+  <div class="md-f"><button class="btn bgr" onclick="cm('m-cpn')">取消</button><button class="btn bp" onclick="doParse()">解析</button><button class="btn bg" onclick="saveCpn()">保存</button></div>
+</div></div>
+
+<div class="tab">
+  <div class="t on" onclick="sw('acc')"><i>👤</i>账号</div>
+  <div class="t" onclick="sw('cpn')"><i>🎫</i>券</div>
+  <div class="t" onclick="sw('grab')"><i>🚀</i>抢券</div>
+  <div class="t" onclick="sw('log')"><i>📋</i>日志</div>
+</div>
+
+<script>
+var ct='acc';
+function sw(t){ct=t;
+document.querySelectorAll('[id^="t-"]').forEach(function(e){e.style.display='none'});
+document.getElementById('t-'+t).style='block';
+document.querySelectorAll('.t').forEach(function(e){e.classList.remove('on')});
+event.currentTarget.classList.add('on');ld()}
+function om(id){document.getElementById(id).classList.add('on')}
+function cm(id){document.getElementById(id).classList.remove('on')}
+function api(m,p,d){return fetch(p,{method:m,headers:{'Content-Type':'application/json'},body:d?JSON.stringify(d):undefined}).then(function(r){return r.json()})}
+
+function ld(){
+api('GET','/api/state').then(function(s){
+if(!s||s.error)return;
+// 账号列表
+var h='';(s.accounts||[]).forEach(function(a,i){
+  var tkSt=a.token?'<span class="tk-st tk-ok">✓ 有token</span>':'<span class="tk-st tk-no">✗ 无token</span>';
+  h+='<div class="it"><div class="it-i"><div class="it-n">'+(a.name||'账号'+(i+1))+'</div><div class="it-d">'+(a.cookie||'').substring(0,40)+'…</div><div style="margin-top:3px">'+tkSt+'</div></div><div class="it-a"><label class="tg"><input type="checkbox" '+(a.enabled?'checked':'')+' onchange="tgA('+i+',this.checked)"><span class="tg-s"></span></label><button class="btn bo" onclick="getTokenForAcc('+i+')">🔑</button><button class="btn bd" onclick="dlA('+i+')">删</button></div></div>'});
+document.getElementById('al').innerHTML=h||'<div class="empty">暂无账号</div>';
+document.getElementById('ac').textContent=(s.accounts||[]).length;
+// 券列表
+var h2='';(s.coupons||[]).forEach(function(c,i){h2+='<div class="it"><div class="it-i"><div class="it-n">'+(c.name||'券'+(i+1))+'</div><div class="it-d">'+c.method+' '+(c.url||'').substring(0,50)+'…</div></div><div class="it-a"><label class="tg"><input type="checkbox" '+(c.enabled?'checked':'')+' onchange="tgC('+i+',this.checked)"><span class="tg-s"></span></label><button class="btn bd" onclick="dlC('+i+')">删</button></div></div>'});
+document.getElementById('cl').innerHTML=h2||'<div class="empty">暂无券</div>';
+document.getElementById('cc').textContent=(s.coupons||[]).length;
+// 抢券状态
+document.getElementById('bs').style.display=s.grabRunning?'none':'block';
+document.getElementById('bst').style.display=s.grabRunning?'block':'none';
+// 日志
+var lh='';(s.logs||[]).slice(0,80).forEach(function(l){var t=l.time?l.time.substring(11,19):'';lh+='<div class="li"><span class="lt">'+t+'</span><span class="lp l-'+l.type+'">'+l.type+'</span>'+l.msg+(l.detail?' <span style="color:#999;font-size:10px">'+l.detail+'</span>':'')+'</div>'});
+document.getElementById('ll').innerHTML=lh||'<div class="empty">暂无日志</div>'}).catch(function(){})}
+
+// 保存账号
+function saveAcc(){var n=document.getElementById('an').value,c=document.getElementById('acook').value,u=document.getElementById('aua').value,t=document.getElementById('atk').value;if(!c){alert('请输入Cookie');return}api('POST','/api/accounts',{name:n,cookie:c,ua:u,token:t||'',enabled:true}).then(function(r){if(r.error){alert('保存失败: '+r.error);return}cm('m-acc');document.getElementById('an').value='';document.getElementById('acook').value='';document.getElementById('aua').value='';document.getElementById('atk').value='';ld()}).catch(function(e){alert('网络错误: '+e.message)})}
+function tgA(i,e){api('PUT','/api/accounts/'+i,{enabled:e}).then(ld)}
+function dlA(i){if(confirm('删除？'))api('DELETE','/api/accounts/'+i).then(ld)}
+
+// 保存券
+function saveCpn(){var n=document.getElementById('cn').value,m=document.getElementById('cm').value,u=document.getElementById('curl').value,b=document.getElementById('cbody').value;if(!u){alert('请输入URL');return}var appid='coupon-activity',fid='';var am=u.match(/appid=(\w+)/);if(am)appid=am[1];var fm=u.match(/functionId=(\w+)/);if(fm)fid=fm[1];api('POST','/api/coupons',{name:n,method:m,url:u,body:b,appid:appid,functionId:fid,enabled:true}).then(function(r){if(r.error){alert('保存失败: '+r.error);return}cm('m-cpn');document.getElementById('cn').value='';document.getElementById('curl').value='';document.getElementById('cbody').value='';document.getElementById('ccurl').value='';ld()}).catch(function(e){alert('网络错误: '+e.message)})}
+function tgC(i,e){api('PUT','/api/coupons/'+i,{enabled:e}).then(ld)}
+function dlC(i){if(confirm('删除？'))api('DELETE','/api/coupons/'+i).then(ld)}
+
+// 解析 cURL
+function doParse(){var c=document.getElementById('ccurl').value;if(!c){alert('请粘贴cURL');return}api('POST','/api/parse-curl',{curl:c}).then(function(r){if(r.error){alert(r.error);return}document.getElementById('cn').value=r.name||'';document.getElementById('cm').value=r.method||'POST';document.getElementById('curl').value=r.url||'';document.getElementById('cbody').value=r.body||'';alert('appid:'+(r.appid||'')+' functionId:'+(r.functionId||'')+'\n解析成功！检查后保存')}).catch(function(e){alert('解析失败: '+e.message)})}
+
+// 抢券
+function doStart(){api('POST','/api/grab/start',{concurrency:parseInt(document.getElementById('c-c').value)||3,retryCount:parseInt(document.getElementById('c-r').value)||10,retryDelay:parseInt(document.getElementById('c-d').value)||300,scheduleTime:document.getElementById('c-s').value||null}).then(function(r){if(r.error){alert(r.error);return}if(r.scheduled)alert('定时: '+r.scheduled);ld()})}
+function doStop(){api('POST','/api/grab/stop').then(ld)}
+function doClear(){if(confirm('清空？'))api('DELETE','/api/logs').then(ld)}
+
+// ============ 从浏览器获取 Token（使用手机 IP） ============
+function getTokenFromBrowser(){
+  var cookie=document.getElementById('acook').value;
+  if(!cookie){alert('请先填写Cookie');return}
+  var ua=document.getElementById('aua').value||'jdapp;iPhone;15.5.0;;;M/5.0;appBuild/170241';
+  document.getElementById('atk').value='获取中...';
+  
+  fetch('https://api.m.jd.com/client.action?functionId=genToken&appid=JDGP0502&client=wh5&clientVersion=1.0.0&area=&networkType=&osVersion=&d_brand=&d_model=&d_name=&lang=zh_CN&jsonp=',{
+    method:'POST',
+    headers:{
+      'Content-Type':'application/x-www-form-urlencoded',
+      'User-Agent':ua,
+      'Origin':'https://pro.m.jd.com',
+      'Referer':'https://pro.m.jd.com/',
+      'Cookie':cookie
+    },
+    body:'body={"to":"https://pro.m.jd.com/","action":"to"}'
+  }).then(function(r){return r.json()}).then(function(j){
+    if(j.token){
+      document.getElementById('atk').value=j.token;
+      alert('Token获取成功！');
+    }else{
+      document.getElementById('atk').value='';
+      alert('获取失败: '+(j.message||JSON.stringify(j)));
+    }
+  }).catch(function(e){
+    document.getElementById('atk').value='';
+    alert('获取失败(CORS或网络): '+e.message+'\n\n请手动从Stream抓包中复制token');
+  });
+}
+
+// 给已有账号获取token
+function getTokenForAcc(i){
+  api('GET','/api/state').then(function(s){
+    var a=(s.accounts||[])[i];
+    if(!a){alert('账号不存在');return}
+    if(!a.cookie){alert('账号Cookie为空');return}
+    
+    // 先试服务器获取
+    alert('将从浏览器获取token（使用手机IP）');
+    
+    fetch('https://api.m.jd.com/client.action?functionId=genToken&appid=JDGP0502&client=wh5&clientVersion=1.0.0&area=&networkType=&osVersion=&d_brand=&d_model=&d_name=&lang=zh_CN&jsonp=',{
+      method:'POST',
+      headers:{
+        'Content-Type':'application/x-www-form-urlencoded',
+        'User-Agent':a.ua||'jdapp;iPhone;15.5.0;;;M/5.0;appBuild/170241',
+        'Origin':'https://pro.m.jd.com',
+        'Referer':'https://pro.m.jd.com/',
+        'Cookie':a.cookie
+      },
+      body:'body={"to":"https://pro.m.jd.com/","action":"to"}'
+    }).then(function(r){return r.json()}).then(function(j){
+      if(j.token){
+        // 保存token到服务器
+        api('PUT','/api/accounts/'+i,{token:j.token}).then(function(){ld();alert('Token获取成功并已保存！')});
+      }else{
+        alert('获取失败: '+(j.message||JSON.stringify(j))+'\n\n请手动粘贴token');
+      }
+    }).catch(function(e){
+      alert('获取失败(CORS): '+e.message+'\n\n请在Stream抓包中找到genToken请求，复制返回的token值，手动输入');
+    });
+  });
+}
+
+// 添加按钮
+document.getElementById('hdr').innerHTML+=' <button style="position:absolute;right:12px;top:10px;background:rgba(255,255,255,.2);border:none;color:#fff;padding:5px 11px;border-radius:5px;font-size:12px" onclick="oa()">+ 添加</button>';
+function oa(){if(ct==='acc')om('m-acc');else if(ct==='cpn')om('m-cpn')}
+
+ld();setInterval(ld,3000);
+</script>
+</body>
+</html>
