@@ -4,6 +4,7 @@ const fs = require("fs");
 const path = require("path");
 const url = require("url");
 const crypto = require("crypto");
+const zlib = require("zlib");
 const CryptoJS = require("crypto-js");
 
 const PORT = process.env.PORT || 3000;
@@ -204,11 +205,27 @@ function httpReq(method, reqUrl, body, headers) {
     return new Promise(function(resolve) {
         var mod = reqUrl.startsWith("https") ? https : http;
         var u = new URL(reqUrl);
-        var opts = { hostname: u.hostname, port: u.port || (reqUrl.startsWith("https") ? 443 : 80), path: u.pathname + u.search, method: method, headers: headers || {}, timeout: 8000 };
+        var hdrs = headers || {};
+        hdrs["Accept-Encoding"] = "gzip, deflate";
+        var opts = { hostname: u.hostname, port: u.port || (reqUrl.startsWith("https") ? 443 : 80), path: u.pathname + u.search, method: method, headers: hdrs, timeout: 8000 };
         var r = mod.request(opts, function(res) {
-            var d = "";
-            res.on("data", function(c) { d += c; });
-            res.on("end", function() { resolve({ status: res.statusCode, body: d }); });
+            var chunks = [];
+            res.on("data", function(c) { chunks.push(c); });
+            res.on("end", function() {
+                var buf = Buffer.concat(chunks);
+                var encoding = res.headers["content-encoding"] || "";
+                var decompress;
+                if (encoding === "gzip") decompress = zlib.gunzip;
+                else if (encoding === "deflate") decompress = zlib.inflate;
+                else if (encoding === "br") decompress = zlib.brotliDecompress;
+                if (decompress) {
+                    decompress(buf, function(err, result) {
+                        resolve({ status: res.statusCode, body: err ? buf.toString() : result.toString() });
+                    });
+                } else {
+                    resolve({ status: res.statusCode, body: buf.toString() });
+                }
+            });
         });
         r.on("error", function(e) { resolve({ error: e.message }); });
         r.on("timeout", function() { r.destroy(); resolve({ error: "timeout" }); });
