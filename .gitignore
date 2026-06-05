@@ -1,0 +1,6 @@
+server/node_modules/
+server/.env
+grab-tool/data/
+local_config.js
+*.local.json
+*.local.env
