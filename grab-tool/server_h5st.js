@@ -252,7 +252,10 @@ async function runGrab(cfg) {
 
     grabState.running = true;
     var cc = cfg.concurrency || 3, rc = cfg.retryCount || 10, rd = cfg.retryDelay || 300;
-    addLog("START", "开始抢券（h5st签名）", "券:" + ac.length + " 账号:" + aa.length);
+    // 判断第一个券是否有完整 h5st
+    var firstCoupon = ac[0];
+    var firstHasH5st = firstCoupon && (firstCoupon.body || '').indexOf('h5st=') > -1 && firstCoupon.fullHeaders;
+    addLog("START", "开始抢券（" + (firstHasH5st ? "完整URL重放" : "h5st签名") + "）", "券:" + ac.length + " 账号:" + aa.length);
 
     // 为每个账号获取 token
     var tokenMap = {};
@@ -300,10 +303,14 @@ async function runGrab(cfg) {
                     var reqUrl, headers, body;
 
                     // 如果券有完整 URL（从 cURL 导入），直接重放
-                    if (cp.fullUrl) {
-                        reqUrl = cp.fullUrl;
+                    // POST 请求中 h5st 在 body 里，需要检查 body 是否含 h5st
+                    var hasH5st = (cp.body || '').indexOf('h5st=') > -1;
+                    var hasFullHeaders = cp.fullHeaders && typeof cp.fullHeaders === 'object' && Object.keys(cp.fullHeaders).length > 0;
+                    if (hasH5st && hasFullHeaders) {
+                        // 完整 cURL 重放模式
+                        reqUrl = cp.fullUrl || cp.url || 'https://api.m.jd.com/client.action';
                         body = cp.body || "";
-                        headers = cp.fullHeaders ? JSON.parse(JSON.stringify(cp.fullHeaders)) : {};
+                        headers = JSON.parse(JSON.stringify(cp.fullHeaders));
                         headers["Cookie"] = ak.cookie;
                     } else {
                         // 用多版本 h5st 签名 (v4.9.1)
