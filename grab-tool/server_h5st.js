@@ -338,6 +338,7 @@ async function runGrab(cfg) {
                     var p = cp.method === "POST" ? httpReq("POST", reqUrl, body, headers) : httpReq("GET", reqUrl, null, headers);
                     promises.push(p.then(function(resp) {
                         var j = parseJson(resp.body);
+                        console.log("[DEBUG] JD响应: " + (resp.body || "").substring(0, 200));
                         var bizCode = j.bizCode || "";
                         var toast = j.toast || "";
                         var resultCode = j.result && j.result.baseResult && j.result.baseResult.resultCode;
