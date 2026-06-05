@@ -647,7 +647,7 @@ var server = http.createServer(async function(req, res) {
     // 券 CRUD
     if (p === "/api/coupons" && req.method === "POST") {
         var b = await parseBody(req);
-        coupons.push({ name: b.name || "券" + (coupons.length + 1), method: b.method || "POST", url: b.url, body: b.body || "", appid: b.appid || "coupon-activity", functionId: b.functionId || "", enabled: true });
+        coupons.push({ name: b.name || "券" + (coupons.length + 1), method: b.method || "POST", url: b.url, body: b.body || "", appid: b.appid || "coupon-activity", functionId: b.functionId || "", fullUrl: b.fullUrl || "", fullHeaders: b.fullHeaders || null, enabled: true });
         saveJSON("coupons.json", coupons); addLog("CONFIG", "添加券: " + (b.name || ""), "");
         return sendJSON(res, { success: true });
     }
