@@ -3,6 +3,7 @@ const https = require("https");
 const fs = require("fs");
 const path = require("path");
 const url = require("url");
+const crypto = require("crypto");
 const CryptoJS = require("crypto-js");
 
 const PORT = process.env.PORT || 3000;
@@ -305,27 +306,25 @@ async function runGrab(cfg) {
                         headers = cp.fullHeaders ? JSON.parse(JSON.stringify(cp.fullHeaders)) : {};
                         headers["Cookie"] = ak.cookie;
                     } else {
-                        // 用服务器 h5st 签名（v4.4，可能不兼容）
+                        // 用多版本 h5st 签名 (v4.9.1)
                         var token = tokenMap[ak.cookie];
                         if (!token) { res.fail++; return; }
-                        var params = {
-                            appid: cp.appid || "coupon-activity",
-                            functionId: cp.functionId || "getBenefit",
-                            client: "wh5",
-                            clientVersion: "1.0.0",
-                            t: Date.now(),
-                            body: cp.body || "{}"
-                        };
-                        var h5st = generateH5st(params, token, null, cp.appid || "fb5df");
-                        reqUrl = cp.url + "&h5st=" + h5st + "&t=" + params.t;
-                        body = cp.body;
+                        var signResult = multiVersionH5stSign('4.9.1', cp.functionId || 'getBenefit', cp.appid || 'coupon-activity', cp.body || '{}', ak.pin, ak.ua);
+                        var qs = 'functionId=' + (cp.functionId || 'getBenefit') + '&appid=' + (cp.appid || 'coupon-activity') + '&client=wh5&clientVersion=1.0.0';
+                        if (signResult && signResult.h5st) {
+                            qs += '&h5st=' + encodeURIComponent(signResult.h5st);
+                            qs += '&_stk=' + encodeURIComponent(signResult._stk);
+                            qs += '&_ste=' + signResult._ste;
+                            qs += '&body=' + encodeURIComponent(signResult.body);
+                        }
+                        reqUrl = 'https://api.m.jd.com/client.action?' + qs;
+                        body = cp.body || '{}';
                         headers = {
-                            "Content-Type": "application/x-www-form-urlencoded",
-                            "Accept": "*/*",
-                            "User-Agent": ak.ua || "jdapp;iPhone;15.5.0;;;M/5.0;appBuild/170241",
-                            "Origin": "https://pro.m.jd.com",
-                            "Referer": "https://pro.m.jd.com/",
-                            "Cookie": ak.cookie
+                            'User-Agent': ak.ua || 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)',
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                            'Accept': 'application/json, text/plain, */*',
+                            'Origin': 'https://api.m.jd.com',
+                            'Cookie': ak.cookie
                         };
                     }
 
@@ -398,6 +397,178 @@ function parseCurl(curl) {
 }
 
 // ==================== HTML 前端 ====================
+// ==================== 多版本 h5st 签名 (v4.2.0 ~ v4.9.1) ====================
+// 基于 chenpython/jd_h5st_server 的算法参数
+const H5ST_ALGO_CONFIGS = {
+  '4.2.0': {
+    version: '4.2', fv: 'h5_file_v4.2.0',
+    envSecret: 'DNiHi703B0&17hh1', bu1: '0.1.9', randomLength: 10,
+    visitKey: { seed: '6d0jhqw3pa', selectLength: 4, randomLength: 11, convertLength: 14 },
+    defaultKey: { extend: '9>5*t5' },
+    makeSign: { extendDateStr: '74' },
+    genLocalTK: { magic: 'tk', version: '02', platform: 'w', expires: '41', producer: 'l', secret1: 'qem7+)g%Dhw5', prefix: 'z7' }
+  },
+  '4.3.1': {
+    version: '4.3', fv: 'h5_file_v4.3.1',
+    envSecret: '&d74&yWoV.EYbWbZ', bu1: '0.1.7', randomLength: 10,
+    visitKey: { seed: 'kl9i1uct6d', selectLength: 3, randomLength: 12, convertLength: 10 },
+    defaultKey: { extend: 'Z=<J_2' },
+    makeSign: { extendDateStr: '22' },
+    genLocalTK: { magic: 'tk', version: '02', platform: 'w', expires: '41', producer: 'l', secret1: '+WzD<U36rlTf', prefix: '0J' }
+  },
+  '4.4.0': {
+    version: '4.4', fv: 'v_lite_f_4.4.0',
+    envSecret: 'r1T.6Vinpb.k+/a)', randomLength: 12,
+    visitKey: { seed: '1uct6d0jhq', selectLength: 4, randomLength: 11, convertLength: 8 },
+    defaultKey: { extend: 'qV!+A!' },
+    makeSign: { extendDateStr: '88' },
+    genLocalTK: { magic: 'tk', version: '02', platform: 'w', expires: '41', producer: 'l', secret1: 'HiO81-Ei89DH', prefix: '(>' }
+  },
+  '4.7.1': {
+    version: '4.7', fv: 'h5_file_v4.7.1',
+    envSecret: '_M6Y?dvfN40VMF[X', bu1: '0.1.5', randomLength: 12,
+    visitKey: { seed: '1uct6d0jhq', selectLength: 5, randomLength: 10, convertLength: 15 },
+    defaultKey: { extend: 'hh1BNE' },
+    makeSign: { extendDateStr: '97' },
+    genLocalTK: { magic: 'tk', version: '03', platform: 'w', expires: '41', producer: 'l', secret1: '8[8I[]d?960w', prefix: 'cw' },
+    customAlgorithm: { salt: '23k@X!', keyReverse: true, convertIndex: { hmac: 16 } }
+  },
+  '4.7.4': {
+    version: '4.7', fv: 'h5_file_v4.7.4', genSignDefault: true,
+    envSecret: '_M6Y?dvfN40VMF[X', bu1: '0.1.5', randomLength: 11,
+    visitKey: { seed: '1uct6d0jhq', selectLength: 5, randomLength: 10, convertLength: 15 },
+    defaultKey: { extend: 'Mp(2C1' },
+    makeSign: { extendDateStr: '47' },
+    genLocalTK: { magic: 'tk', version: '03', platform: 'w', expires: '41', producer: 'l', secret1: '4*iK&33Z|+6)', prefix: 'FX' },
+    customAlgorithm: { salt: '7n5<G*', keyReverse: true, convertIndex: { hmac: 5 } }
+  },
+  '4.8.1': {
+    version: '4.8', fv: 'h5_file_v4.8.1', genSignDefault: true,
+    randomLength: 11,
+    visitKey: { seed: '2mn87xbyof', selectLength: 6, randomLength: 9, convertLength: 14 },
+    defaultKey: { extend: 'JdM3|5' },
+    makeSign: { extendDateStr: '36' },
+    genLocalTK: { magic: 'tk', version: '04', platform: 'w', expires: '41', producer: 'l', secret1: 'DbIAgz71j04v', prefix: 'mT' },
+    customAlgorithm: { salt: '7hh1BN', convertIndex: { hex: 6, hmac: 5 } }
+  },
+  '4.9.1': {
+    version: '4.9', fv: 'h5_file_v4.9.1', genSignDefault: true,
+    randomLength: 12,
+    visitKey: { seed: 'z4rekl9i1u', selectLength: 4, randomLength: 11, convertLength: 8 },
+    defaultKey: { extend: 'SDV&6(' },
+    makeSign: { extendDateStr: '07' },
+    genLocalTK: { magic: 'tk', version: '04', platform: 'w', expires: '41', producer: 'l', secret1: 'qodOHbSV1ik2', prefix: 'ba' },
+    customAlgorithm: { salt: 'x38rG0', convertIndex: { hex: 6, hmac: 9 } }
+  }
+};
+
+function h5stGetRandomIDPro(size, dictType) {
+  if (typeof size === 'object') { dictType = size.dictType; size = size.size; }
+  size = size || 16;
+  var chars = dictType === 'max' ? 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789' : 'abcdefghijklmnopqrstuvwxyz0123456789';
+  var r = '';
+  for (var i = 0; i < size; i++) r += chars[Math.floor(Math.random() * chars.length)];
+  return r;
+}
+
+function h5stAdler32(data) {
+  var a = 1, b = 0, MOD = 65521;
+  for (var i = 0; i < data.length; i++) { a = (a + data[i]) % MOD; b = (b + a) % MOD; }
+  return ((b << 16) | a) >>> 0;
+}
+
+function h5stStringToHex(str) { return Buffer.from(str, 'utf8').toString('hex'); }
+
+class H5stSignerV2 {
+  constructor(config, pin, ua) {
+    this.config = config;
+    this.pin = pin;
+    this.ua = ua;
+    this.fingerprint = h5stGetRandomIDPro(16, 'max');
+    this.token = this._genLocalToken();
+  }
+
+  _genLocalToken() {
+    var cfg = this.config.genLocalTK;
+    var now = Date.now();
+    var fp = this.fingerprint;
+
+    // gen expr
+    var numbers = ['1','2','3'];
+    var operators = ['+','x'];
+    var length = 2 + Math.floor(4 * Math.random());
+    var expression = '';
+    for (var i = 0; i < length; i++) {
+      expression += numbers[Math.floor(Math.random() * 3)];
+      if (i < length - 1) expression += operators[Math.floor(Math.random() * 2)];
+    }
+    if (expression.length < 9) expression += h5stGetRandomIDPro(9 - expression.length);
+    var expr = Buffer.from(expression).toString('base64').replace(/=+$/, '');
+
+    // gen cipher
+    var prefix = cfg.prefix;
+    var secret1 = cfg.secret1;
+    var fpBytes = Buffer.alloc(16);
+    for (var i = 0; i < 16; i++) fpBytes[i] = fp.charCodeAt(i);
+    var timeBytes = Buffer.alloc(4);
+    timeBytes.writeUInt32BE((now & 0xFFFFFFFF) >>> 0);
+    var prefixBytes = Buffer.from(prefix);
+    var secret1Bytes = Buffer.alloc(12);
+    for (var i = 0; i < Math.min(12, secret1.length); i++) secret1Bytes[i] = secret1.charCodeAt(i);
+    var combined = Buffer.concat([prefixBytes, secret1Bytes, timeBytes, fpBytes]);
+    var checksum = h5stAdler32(combined);
+    var checksumStr = checksum.toString(16).padStart(8, '0');
+    var cipherPlain = h5stStringToHex(checksumStr) + h5stStringToHex(prefix) + h5stStringToHex(secret1) + timeBytes.toString('hex') + h5stStringToHex(fp);
+    var envKey = Buffer.alloc(16, 0);
+    Buffer.from('0102030405060708').copy(envKey);
+    var cipher = _aesEncrypt(Buffer.from(cipherPlain, 'hex').toString('utf8'), envKey, Buffer.from('0102030405060708'));
+
+    var adler = h5stAdler32(Buffer.from(cfg.magic + cfg.version + cfg.platform + cfg.expires + cfg.producer + expr + cipher));
+    return cfg.magic + cfg.version + cfg.platform + adler.toString(16).padStart(8,'0') + cfg.expires + cfg.producer + expr + cipher;
+  }
+
+  sign(functionId, appid, body) {
+    var now = Date.now();
+    var ts = new Date(now - new Date().getTimezoneOffset() * 60000).toISOString().replace(/[-:T.Z]/g, '').slice(0, 17);
+    var ts2 = now.toString();
+    var fp = this.fingerprint;
+    var tk = this.token;
+    var appId = 'a5290';
+    var bodyStr = typeof body === 'string' ? body : JSON.stringify(body);
+    var bodyHash = CryptoJS.SHA256(bodyStr).toString();
+    var key = this.config.makeSign.extendDateStr + this.config.defaultKey.extend;
+    var params = 'appid:' + appid + ',body:' + bodyStr + ',functionId:' + functionId;
+    var signStr;
+    if (this.config.genSignDefault) {
+      signStr = CryptoJS.MD5(key + params + key).toString();
+    } else {
+      signStr = CryptoJS.HmacMD5(params, key).toString();
+    }
+    var envSecret = this.config.envSecret || '0102030405060708';
+    var envKey = Buffer.alloc(16, 0);
+    Buffer.from(envSecret, 'utf8').copy(envKey);
+    var envData = JSON.stringify({ fp: fp, bu1: this.config.bu1 || '0.1.9', fv: this.config.fv });
+    var envEncrypted = _aesEncrypt(envData, envKey, Buffer.from('0102030405060708'));
+    var h5st = ts + ';' + fp + ';' + appId + ';' + tk + ';' + signStr + ';' + this.config.version + ';' + ts2 + ';' + envEncrypted;
+    return { h5st: h5st, _stk: 'appid,body,functionId', _ste: 1, appid: appid, body: bodyHash, functionId: functionId };
+  }
+}
+
+function _aesEncrypt(plaintext, key, iv) {
+  var cipher = crypto.createCipheriv('aes-128-cbc', key, iv);
+  cipher.setAutoPadding(true);
+  var encrypted = cipher.update(plaintext, 'utf8', 'base64');
+  encrypted += cipher.final('base64');
+  return encrypted;
+}
+
+function multiVersionH5stSign(version, functionId, appid, body, pin, ua) {
+  var config = H5ST_ALGO_CONFIGS[version];
+  if (!config) return { error: '不支持的版本: ' + version + '，支持: ' + Object.keys(H5ST_ALGO_CONFIGS).join(', ') };
+  var signer = new H5stSignerV2(config, pin || '', ua || '');
+  return signer.sign(functionId, appid, body);
+}
+
 var htmlContent = fs.readFileSync(path.join(__dirname, "index.html"), "utf8");
 
 function parseBody(req) {
@@ -521,6 +692,18 @@ var server = http.createServer(async function(req, res) {
         if (!html) return sendJSON(res, { error: "请粘贴页面内容" });
         var links = extractJdLinks(html);
         return sendJSON(res, { links: links, total: links.length });
+    }
+
+    // 多版本 h5st 签名 (v4.2.0 ~ v4.9.1)
+    if (p === "/api/h5st-sign" && req.method === "POST") {
+        var b = await parseBody(req);
+        var version = b.version || '4.9.1';
+        var result = multiVersionH5stSign(version, b.functionId, b.appid, b.body, b.pin, b.ua);
+        if (result.error) return sendJSON(res, result, 400);
+        return sendJSON(res, { success: true, h5st: result });
+    }
+    if (p === "/api/h5st-versions" && req.method === "GET") {
+        return sendJSON(res, { versions: Object.keys(H5ST_ALGO_CONFIGS) });
     }
 
     // 日志
