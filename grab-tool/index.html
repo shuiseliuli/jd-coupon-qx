@@ -158,7 +158,7 @@ var h='';(s.accounts||[]).forEach(function(a,i){
 document.getElementById('al').innerHTML=h||'<div class="empty">暂无账号</div>';
 document.getElementById('ac').textContent=(s.accounts||[]).length;
 // 券列表
-var h2='';(s.coupons||[]).forEach(function(c,i){h2+='<div class="it"><div class="it-i"><div class="it-n">'+(c.name||'券'+(i+1))+'</div><div class="it-d">'+c.method+' '+(c.url||'').substring(0,50)+'…</div></div><div class="it-a"><label class="tg"><input type="checkbox" '+(c.enabled?'checked':'')+' onchange="tgC('+i+',this.checked)"><span class="tg-s"></span></label><button class="btn bd" onclick="dlC('+i+')">删</button></div></div>'});
+var h2='';(s.coupons||[]).forEach(function(c,i){var mode=c.fullUrl&&c.fullHeaders?'<span style="color:#52c41a">重放</span>':'<span style="color:#faad14">签名</span>';h2+='<div class="it"><div class="it-i"><div class="it-n"><span style="color:#999;margin-right:4px">#'+(i+1)+'</span><span id="cn-'+i+'" onclick="renameC('+i+')" style="cursor:pointer;border-bottom:1px dashed #ccc" title="点击改名">'+(c.name||'券'+(i+1))+'</span> '+mode+'</div><div class="it-d">'+c.method+' '+(c.url||'').substring(0,50)+'…</div></div><div class="it-a"><label class="tg"><input type="checkbox" '+(c.enabled?'checked':'')+' onchange="tgC('+i+',this.checked)"><span class="tg-s"></span></label><button class="btn bo" onclick="renameC('+i+')">✏️</button><button class="btn bd" onclick="dlC('+i+')">删</button></div></div>'});
 document.getElementById('cl').innerHTML=h2||'<div class="empty">暂无券</div>';
 document.getElementById('cc').textContent=(s.coupons||[]).length;
 // 抢券状态
@@ -176,6 +176,7 @@ function dlA(i){if(confirm('删除？'))api('DELETE','/api/accounts/'+i).then(ld
 // 保存券
 function saveCpn(){var n=document.getElementById('cn').value,m=document.getElementById('cm').value,u=document.getElementById('curl').value,b=document.getElementById('cbody').value;if(!u){alert('请输入URL');return}var appid='coupon-activity',fid='';var am=u.match(/appid=(\w+)/);if(am)appid=am[1];var fm=u.match(/functionId=(\w+)/);if(fm)fid=fm[1];var payload={name:n,method:m,url:u,body:b,appid:appid,functionId:fid,enabled:true};if(window._parsedFullUrl){payload.fullUrl=window._parsedFullUrl;payload.fullHeaders=window._parsedFullHeaders||null}api('POST','/api/coupons',payload).then(function(r){if(r.error){alert('保存失败: '+r.error);return}cm('m-cpn');document.getElementById('cn').value='';document.getElementById('curl').value='';document.getElementById('cbody').value='';document.getElementById('ccurl').value='';window._parsedFullUrl='';window._parsedFullHeaders=null;ld()}).catch(function(e){alert('网络错误: '+e.message)})}
 function tgC(i,e){api('PUT','/api/coupons/'+i,{enabled:e}).then(ld)}
+function renameC(i){var el=document.getElementById('cn-'+i);var old=el.textContent;var n=prompt('输入新名称:',old);if(n&&n!==old){api('PUT','/api/coupons/'+i,{name:n}).then(ld)}}
 function dlC(i){if(confirm('删除？'))api('DELETE','/api/coupons/'+i).then(ld)}
 
 // 解析 cURL
