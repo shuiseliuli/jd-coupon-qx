@@ -713,9 +713,26 @@ var server = http.createServer(async function(req, res) {
     // 解析 JD 页面，提取领券链接
     if (p === "/api/parse-jd-page" && req.method === "POST") {
         var b = await parseBody(req);
-        var html = b.html || "";
-        if (!html) return sendJSON(res, { error: "请粘贴页面内容" });
-        var links = extractJdLinks(html);
+        var input = b.html || "";
+        if (!input) return sendJSON(res, { error: "请粘贴页面内容或URL" });
+
+        // 如果输入是 URL，先抓取页面
+        if (input.match(/^https?:\/\//)) {
+            try {
+                var pageData = await httpReq("GET", input, null, {
+                    "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_3_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148",
+                    "Accept": "text/html,application/xhtml+xml",
+                    "Accept-Encoding": "gzip, deflate"
+                });
+                if (pageData.error) return sendJSON(res, { error: "抓取页面失败: " + pageData.error });
+                input = pageData.body || "";
+                addLog("PARSE", "抓取页面成功", "长度: " + input.length);
+            } catch(e) {
+                return sendJSON(res, { error: "抓取页面异常: " + e.message });
+            }
+        }
+
+        var links = extractJdLinks(input);
         return sendJSON(res, { links: links, total: links.length });
     }
 

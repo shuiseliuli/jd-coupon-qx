@@ -93,7 +93,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#f5f5f5;
   <div class="sec">
     <div class="sec-t">解析JD页面</div>
     <div class="hint" style="margin:10px">💡 支持三种输入：\n1. 粘贴 Stream 抓包的 cURL（一个或多个）\n2. 粘贴多个 cURL（每个一行，自动批量提取）\n3. 粘贴 JD 页面 HTML 源码（提取链接结构）</div>
-    <div class="fg" style="padding:10px 14px"><textarea id="pg-html" rows="8" placeholder="粘贴 Stream 抓包的 cURL 数据...\n\n支持：\n- 单个完整 cURL\n- 多个 cURL（每行一个）\n- JD 页面 HTML 源码"></textarea></div>
+    <div class="fg" style="padding:10px 14px"><textarea id="pg-html" rows="8" placeholder="支持三种输入：\n1. 粘贴 JD 页面链接 (pro.m.jd.com/...)\n2. 粘贴 Stream 抓包的 cURL 数据\n3. 粘贴 JD 页面 HTML 源码"></textarea></div>
     <div style="padding:0 14px 10px"><button class="btn bp bb" onclick="doParsePage()">🔍 解析页面</button> <button class="btn bg bb" onclick="addAllParsed()" style="display:none" id="btn-add-all">➕ 全部添加</button></div>
     <div id="pg-result"></div>
   </div>
